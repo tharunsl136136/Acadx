@@ -1,0 +1,15 @@
+﻿{
+  "name": "acadshield-x",
+  "version": "1.0.0",
+  "description": "ACADSHIELD X: Digital Trust Infrastructure for Education, Skills and Employment",
+  "private": true,
+  "workspaces": [
+    "acadshield-core",
+    "acadshield-trust"
+  ],
+  "scripts": {
+    "core:dev": "npm run dev:backend --workspace=acadshield-core",
+    "trust:dev": "npm run dev:backend --workspace=acadshield-trust",
+    "test": "npm test --workspaces --if-present"
+  }
+}

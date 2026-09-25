@@ -1,0 +1,100 @@
+version: "3.8"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: acadshield-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-acadshield}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-acadshield_secure_dev_password}
+      POSTGRES_DB: ${POSTGRES_DB:-acadshield_core}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U acadshield -d acadshield_core"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - acadshield-network
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: acadshield-backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      PORT: 4000
+      DATABASE_URL: postgresql://${POSTGRES_USER:-acadshield}:${POSTGRES_PASSWORD:-acadshield_secure_dev_password}@postgres:5432/${POSTGRES_DB:-acadshield_core}?schema=public
+      JWT_SECRET: ${JWT_SECRET:-super_secret_jwt_access_token_key_change_in_production_min32chars}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-super_secret_jwt_refresh_token_key_change_in_production_min32chars}
+      INTERNAL_SERVICE_API_KEY: ${INTERNAL_SERVICE_API_KEY:-acad_sec_dev_projb_trust_engine_key_99812450}
+      CORS_ORIGIN: http://localhost:3000
+      FRONTEND_URL: http://localhost:3000
+      BLOCKCHAIN_RPC_URL: ${BLOCKCHAIN_RPC_URL:-https://rpc-amoy.polygon.technology}
+      CHAIN_ID: ${CHAIN_ID:-80002}
+      DEPLOYER_PRIVATE_KEY: ${DEPLOYER_PRIVATE_KEY}
+      CREDENTIAL_CONTRACT_ADDRESS: ${CREDENTIAL_CONTRACT_ADDRESS}
+      IDENTITY_CONTRACT_ADDRESS: ${IDENTITY_CONTRACT_ADDRESS}
+      ACCESS_CONTROL_CONTRACT_ADDRESS: ${ACCESS_CONTROL_CONTRACT_ADDRESS}
+      IPFS_STORAGE_MODE: ${IPFS_STORAGE_MODE:-mock}
+    ports:
+      - "4000:4000"
+    volumes:
+      - ipfs_mock_storage:/app/storage/ipfs
+    networks:
+      - acadshield-network
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: acadshield-frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      NEXT_PUBLIC_API_URL: http://localhost:4000/api/v1
+      NEXT_PUBLIC_CHAIN_ID: ${CHAIN_ID:-80002}
+      NEXT_PUBLIC_CHAIN_NAME: "Polygon Amoy Testnet"
+      NEXT_PUBLIC_VERIFY_BASE_URL: http://localhost:3000/verify
+      NEXT_PUBLIC_CREDENTIAL_CONTRACT_ADDRESS: ${CREDENTIAL_CONTRACT_ADDRESS}
+    ports:
+      - "3000:3000"
+    networks:
+      - acadshield-network
+
+  hardhat-node:
+    image: node:20-alpine
+    container_name: acadshield-hardhat
+    working_dir: /app
+    volumes:
+      - ./contracts:/app
+    command: sh -c "npm install && npx hardhat node --hostname 0.0.0.0"
+    ports:
+      - "8545:8545"
+    networks:
+      - acadshield-network
+    profiles:
+      - local-chain
+
+volumes:
+  postgres_data:
+    driver: local
+  ipfs_mock_storage:
+    driver: local
+
+networks:
+  acadshield-network:
+    driver: bridge
