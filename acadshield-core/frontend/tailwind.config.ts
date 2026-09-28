@@ -10,6 +10,12 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
+        forest: {
+          DEFAULT: "#0B251D",
+        },
+        ochre: {
+          DEFAULT: "#E5B25D",
+        },
         brand: {
           50: "#f0f7ff",
           100: "#e0effe",

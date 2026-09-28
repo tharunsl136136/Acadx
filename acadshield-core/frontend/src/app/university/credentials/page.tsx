@@ -1,258 +1,63 @@
 "use client";
 
-import React, { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
 import EnterpriseNavbar from "@/components/EnterpriseNavbar";
-import { usePlatformState } from "@/lib/platform-state";
-import {
-  Award,
-  Search,
-  CheckCircle2,
-  XCircle,
-  AlertTriangle,
-  History,
-  ShieldCheck,
-  QrCode,
-  ExternalLink,
-  Ban,
-  FileCheck2,
-  Clock,
-  Sparkles
-} from "lucide-react";
+import { AlertTriangle, ExternalLink, Plus, QrCode, Search, ShieldCheck, XCircle } from "lucide-react";
+
+type Credential = { id: string; credentialType: string; subjectReference: string; status: string; issuedAt: string | null; expiresAt: string | null; tokenId: string | null; transactionHash: string | null; document: { id: string; originalFileName: string; documentSha256: string; documentType: string | null } | null };
+const apiBase = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api/v1").replace(/\/$/, "");
 
 export default function UniversityCredentialsPage() {
-  const { credentials, revokeCredential } = usePlatformState();
-  const [searchTerm, setSearchTerm] = useState("");
-  const [selectedCredForRevoke, setSelectedCredForRevoke] = useState<any>(null);
-  const [revokeReason, setRevokeReason] = useState<string>("Administrative correction");
-  const [customNotes, setCustomNotes] = useState<string>("");
-  const [isRevoking, setIsRevoking] = useState<boolean>(false);
+  const [credentials, setCredentials] = useState<Credential[]>([]);
+  const [search, setSearch] = useState("");
+  const [selected, setSelected] = useState<Credential | null>(null);
+  const [reason, setReason] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
-  const filtered = credentials.filter(
-    (c) =>
-      c.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      c.studentName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      c.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      c.documentHash.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const load = useCallback(async () => {
+    const response = await fetch(`${apiBase}/credentials`, { credentials: "include", cache: "no-store" });
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(response.status === 401 || response.status === 403 ? "Sign in with an active university account to see this registry." : "Could not load credentials.");
+    setCredentials((body.credentials || []) as Credential[]);
+  }, []);
 
-  const handleExecuteRevocation = () => {
-    if (!selectedCredForRevoke) return;
-    setIsRevoking(true);
-    setTimeout(() => {
-      const finalReason = customNotes ? `${revokeReason}: ${customNotes}` : revokeReason;
-      revokeCredential(selectedCredForRevoke.id, finalReason);
-      setIsRevoking(false);
-      setSelectedCredForRevoke(null);
-    }, 1000);
-  };
+  useEffect(() => { load().catch((cause: unknown) => setError(cause instanceof Error ? cause.message : "Could not load credentials.")); }, [load]);
+
+  async function revoke() {
+    if (!selected) return;
+    setLoading(true); setError("");
+    try {
+      const response = await fetch(`${apiBase}/credentials/${encodeURIComponent(selected.id)}/revoke`, { method: "POST", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ reason: reason.trim() }) });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        setError(body.error === "BLOCKCHAIN_ISSUER_NOT_CONFIGURED" ? "This credential is on-chain; configure the issuer wallet before revoking so chain and database status stay aligned." : "Revocation failed. No local revocation was recorded.");
+        return;
+      }
+      setSelected(null); setReason(""); await load();
+    } catch { setError("Could not reach the issuer service. Revocation was not confirmed."); }
+    finally { setLoading(false); }
+  }
+
+  const filtered = credentials.filter((item) => `${item.credentialType} ${item.id} ${item.subjectReference} ${item.document?.originalFileName || ""}`.toLowerCase().includes(search.toLowerCase()));
 
   return (
     <div className="min-h-screen bg-canvas-texture text-forest pb-24">
       <EnterpriseNavbar activeRole="UNIVERSITY" />
+      <main className="max-w-7xl mx-auto px-6 py-8 space-y-6">
+        <header className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 border-b border-forest/10 pb-5"><div><div className="inline-flex items-center gap-2 rounded-full bg-forest/5 px-3 py-1 text-xs font-semibold uppercase"><ShieldCheck className="h-4 w-4 text-ochre" />Credential Registry</div><h1 className="mt-3 text-3xl font-extrabold font-serif">Issued credentials</h1><p className="mt-1 text-sm text-forest/70">Live records issued by this institution. Chain receipts are shown only when confirmed and stored.</p></div><Link href="/university/credentials/create" className="inline-flex items-center gap-2 rounded-xl bg-forest px-5 py-3 text-sm font-bold text-white"><Plus className="h-4 w-4" />Issue credential</Link></header>
 
-      {/* Header */}
-      <section className="border-b border-forest/10 bg-white/70 backdrop-blur px-6 py-8">
-        <div className="max-w-7xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div>
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-forest/5 border border-forest/10 text-xs font-semibold uppercase tracking-wider text-forest/80 mb-3">
-              <Award className="w-3.5 h-3.5 text-ochre" />
-              Verifiable Credential Lifecycle
-            </div>
-            <h1 className="text-3xl lg:text-4xl font-extrabold tracking-tight headline-shadow font-serif">
-              Issued Academic Credentials
-            </h1>
-            <p className="mt-1 text-forest/75 text-sm max-w-xl">
-              Manage cryptographic credentials anchored to Polygon Amoy. Supports multi-version history and transparent, non-destructive revocation audits.
-            </p>
-          </div>
-        </div>
-      </section>
+        <div className="flex flex-col sm:flex-row gap-3"><div className="relative flex-1"><Search className="absolute left-3 top-3 h-4 w-4 text-forest/40" /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search credential, DID, or source file" className="w-full rounded-xl border border-forest/20 bg-white py-2.5 pl-10 pr-4 text-sm" /></div><span className="rounded-xl bg-white px-4 py-2.5 text-sm">{filtered.length} record(s)</span></div>
+        {error && <div role="alert" className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950 flex gap-2"><AlertTriangle className="h-5 w-5 shrink-0" />{error}</div>}
 
-      <main className="max-w-7xl mx-auto px-6 pt-8 space-y-6">
-        {/* Search */}
-        <div className="bg-white border border-forest/10 rounded-2xl p-4 shadow-sm flex items-center justify-between">
-          <div className="relative w-full sm:w-96">
-            <Search className="w-4 h-4 text-forest/40 absolute left-3.5 top-1/2 -translate-y-1/2" />
-            <input
-              type="text"
-              placeholder="Search by credential title, student name, or ID..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 rounded-xl border border-forest/20 bg-forest/5 text-xs text-forest focus:outline-none focus:ring-2 focus:ring-ochre"
-            />
-          </div>
-          <span className="text-xs font-bold text-forest/60">
-            {filtered.length} Authoritative Credentials
-          </span>
-        </div>
-
-        {/* Credentials Table */}
-        <div className="bg-white border border-forest/10 rounded-2xl shadow-sm overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-forest/5 border-b border-forest/10 text-forest/70 font-semibold uppercase tracking-wider text-[11px]">
-                <tr>
-                  <th className="py-3.5 px-6">Credential & Student</th>
-                  <th className="py-3.5 px-6">Issuing Officer</th>
-                  <th className="py-3.5 px-6">Version & Blockchain</th>
-                  <th className="py-3.5 px-6">Lifecycle Status</th>
-                  <th className="py-3.5 px-6 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-forest/10">
-                {filtered.map((cred) => (
-                  <tr key={cred.id} className="hover:bg-forest/5 transition">
-                    <td className="py-4 px-6">
-                      <div className="font-bold text-forest text-sm">{cred.title}</div>
-                      <div className="text-forest/70 font-medium">{cred.studentName}</div>
-                      <div className="font-mono text-[10px] text-forest/40 truncate max-w-xs mt-0.5">
-                        ID: {cred.id} • Hash: {cred.documentHash.slice(0, 16)}...
-                      </div>
-                    </td>
-
-                    <td className="py-4 px-6">
-                      <div className="font-semibold text-forest">{cred.issuerName}</div>
-                      <div className="text-forest/50 text-[10px]">
-                        Issued: {new Date(cred.issueDate).toLocaleDateString()}
-                      </div>
-                    </td>
-
-                    <td className="py-4 px-6">
-                      <span className="inline-block px-2 py-0.5 rounded text-[10px] font-bold bg-forest/5 border border-forest/10 text-forest/70">
-                        Version {cred.version} (Immutable)
-                      </span>
-                      <div className="font-mono text-[10px] text-forest/50 mt-1">
-                        Token #{cred.blockchain.tokenId} • {cred.blockchain.network}
-                      </div>
-                    </td>
-
-                    <td className="py-4 px-6">
-                      <span
-                        className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full font-bold text-[10px] ${
-                          cred.status === "ACTIVE"
-                            ? "bg-emerald-100 text-emerald-800"
-                            : "bg-red-100 text-red-800"
-                        }`}
-                      >
-                        {cred.status === "ACTIVE" ? (
-                          <>
-                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                            ACTIVE
-                          </>
-                        ) : (
-                          <>
-                            <XCircle className="w-3.5 h-3.5 text-red-600" />
-                            REVOKED
-                          </>
-                        )}
-                      </span>
-                      {cred.revocationReason && (
-                        <div className="text-[10px] text-red-600/80 mt-1 max-w-xs italic truncate">
-                          Reason: {cred.revocationReason}
-                        </div>
-                      )}
-                    </td>
-
-                    <td className="py-4 px-6 text-right">
-                      {cred.status === "ACTIVE" ? (
-                        <button
-                          onClick={() => setSelectedCredForRevoke(cred)}
-                          className="px-3 py-1.5 rounded-lg bg-red-50 hover:bg-red-100 border border-red-200 text-red-700 font-bold text-xs transition flex items-center gap-1.5 ml-auto"
-                        >
-                          <Ban className="w-3.5 h-3.5" /> Revoke
-                        </button>
-                      ) : (
-                        <span className="text-[11px] text-forest/40 font-mono">
-                          Revoked • Log Preserved
-                        </span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
+        <div className="overflow-x-auto rounded-2xl border border-forest/10 bg-white shadow-sm"><table className="w-full text-left text-sm"><thead className="bg-forest/5 text-xs uppercase"><tr><th className="p-4">Credential</th><th className="p-4">Subject reference</th><th className="p-4">Source document</th><th className="p-4">Lifecycle / chain</th><th className="p-4">Actions</th></tr></thead><tbody className="divide-y divide-forest/10">
+          {filtered.map((item) => <tr key={item.id} className="align-top"><td className="p-4"><div className="font-bold">{item.credentialType}</div><code className="mt-1 block break-all text-[11px] text-forest/60">{item.id}</code><div className="mt-1 text-xs text-forest/60">Issued {item.issuedAt ? new Date(item.issuedAt).toLocaleDateString() : "date unavailable"}</div></td><td className="p-4 font-mono text-xs break-all">{item.subjectReference}</td><td className="p-4">{item.document ? <><div>{item.document.documentType || "Academic document"}</div><div className="text-xs text-forest/60">{item.document.originalFileName}</div></> : "Missing"}</td><td className="p-4"><div className="font-bold">{item.status}</div><div className="mt-1 text-xs">{item.tokenId ? `Token #${item.tokenId}` : "Not minted"}</div>{item.transactionHash && <code className="mt-1 block max-w-44 truncate text-[10px]">{item.transactionHash}</code>}</td><td className="p-4"><div className="flex flex-wrap gap-2"><Link href={`/verify/${encodeURIComponent(item.id)}`} target="_blank" aria-label="Open public resolver" className="rounded-lg border p-2"><ExternalLink className="h-4 w-4" /></Link><Link href="/university/qr" aria-label="Generate QR" className="rounded-lg border p-2"><QrCode className="h-4 w-4" /></Link>{item.status === "ACTIVE" && <button onClick={() => { setSelected(item); setReason(""); }} aria-label="Revoke credential" className="rounded-lg border border-red-200 p-2 text-red-700"><XCircle className="h-4 w-4" /></button>}</div></td></tr>)}
+          {!filtered.length && <tr><td colSpan={5} className="p-8 text-center text-sm text-forest/60">No live credential records found.</td></tr>}
+        </tbody></table></div>
       </main>
 
-      {/* Revocation Modal */}
-      {selectedCredForRevoke && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white border border-forest/20 rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-5 animate-in fade-in zoom-in-95">
-            <div className="flex items-center gap-3 border-b border-forest/10 pb-4">
-              <div className="w-10 h-10 rounded-xl bg-red-100 text-red-700 flex items-center justify-center">
-                <Ban className="w-6 h-6" />
-              </div>
-              <div>
-                <h3 className="text-base font-bold text-forest">
-                  Revoke Academic Credential
-                </h3>
-                <span className="text-xs text-forest/60">
-                  Institutional Transparency • Immutable Audit Trail
-                </span>
-              </div>
-            </div>
-
-            <div className="p-3.5 rounded-xl bg-red-50 border border-red-200 text-xs text-red-900 space-y-1">
-              <div className="font-bold">Target: {selectedCredForRevoke.title}</div>
-              <div>Student: {selectedCredForRevoke.studentName}</div>
-              <div className="font-mono text-[10px]">ID: {selectedCredForRevoke.id}</div>
-            </div>
-
-            <div>
-              <label className="block text-xs font-bold text-forest mb-1">
-                Select Mandatory Revocation Reason *
-              </label>
-              <select
-                value={revokeReason}
-                onChange={(e) => setRevokeReason(e.target.value)}
-                className="w-full px-3 py-2.5 rounded-xl border border-forest/20 bg-forest/5 text-xs text-forest focus:outline-none focus:ring-2 focus:ring-red-500 font-medium"
-              >
-                <option value="Administrative correction">Administrative correction</option>
-                <option value="Duplicate issuance">Duplicate issuance</option>
-                <option value="Incorrect information">Incorrect information</option>
-                <option value="Credential withdrawn">Credential withdrawn</option>
-                <option value="Academic record correction">Academic record correction</option>
-                <option value="Institutional action">Institutional disciplinary action</option>
-                <option value="Other verified cause">Other verified cause</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-xs font-bold text-forest mb-1">
-                Supporting Explanation / Audit Notes
-              </label>
-              <textarea
-                rows={2}
-                placeholder="Provide detailed registrar justification..."
-                value={customNotes}
-                onChange={(e) => setCustomNotes(e.target.value)}
-                className="w-full px-3 py-2 rounded-xl border border-forest/20 bg-forest/5 text-xs text-forest focus:outline-none focus:ring-2 focus:ring-red-500"
-              />
-            </div>
-
-            <div className="text-[11px] text-forest/60 bg-forest/5 p-3 rounded-xl border border-forest/10">
-              <strong>Audit Guarantee: </strong> Historical versions are preserved. A cryptographic revocation tombstone will immediately inform verifiers querying this record.
-            </div>
-
-            <div className="flex justify-end gap-3 pt-3 border-t border-forest/10">
-              <button
-                onClick={() => setSelectedCredForRevoke(null)}
-                className="px-4 py-2 rounded-xl border border-forest/20 text-xs font-bold text-forest hover:bg-forest/5 transition"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleExecuteRevocation}
-                disabled={isRevoking}
-                className="px-5 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-bold shadow transition flex items-center gap-1.5"
-              >
-                {isRevoking ? "Signing Revocation..." : "Confirm Revocation"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {selected && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"><section role="dialog" aria-modal="true" aria-labelledby="revoke-title" className="w-full max-w-lg space-y-5 rounded-2xl bg-white p-6 shadow-2xl"><div><h2 id="revoke-title" className="text-lg font-extrabold">Revoke credential</h2><p className="mt-1 break-all font-mono text-xs">{selected.id}</p></div><p className="text-sm text-forest/70">For minted credentials, the chain revocation is confirmed before the local registry changes. This action cannot be undone.</p><label htmlFor="revoke-reason" className="block text-xs font-bold uppercase">Required reason</label><textarea id="revoke-reason" minLength={5} maxLength={500} value={reason} onChange={(event) => setReason(event.target.value)} className="w-full rounded-xl border border-forest/20 bg-forest/5 p-3 text-sm" rows={3} />{error && <div role="alert" className="text-sm text-red-700">{error}</div>}<div className="flex justify-end gap-3"><button onClick={() => setSelected(null)} className="rounded-xl border px-4 py-2 text-sm font-bold">Cancel</button><button disabled={loading || reason.trim().length < 5} onClick={revoke} className="rounded-xl bg-red-700 px-4 py-2 text-sm font-bold text-white disabled:opacity-50">{loading ? "Confirming…" : "Confirm revocation"}</button></div></section></div>}
     </div>
   );
 }

@@ -6,19 +6,20 @@ import { usePathname, useRouter } from "next/navigation";
 import { Shield, Building2, Briefcase, KeyRound, ChevronDown, Check, LogOut, ArrowRight, User } from "lucide-react";
 import { UserRole } from "../lib/mock-platform-data";
 
-export default function EnterpriseNavbar() {
+export default function EnterpriseNavbar({ activeRole }: { activeRole?: UserRole } = {}) {
   const pathname = usePathname();
   const router = useRouter();
-  const [currentRole, setCurrentRole] = useState<UserRole>("UNIVERSITY");
+  const [currentRole, setCurrentRole] = useState<UserRole>(activeRole ?? "UNIVERSITY");
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
   // Sync role based on path
   useEffect(() => {
-    if (pathname.startsWith("/admin")) setCurrentRole("ADMIN");
+    if (activeRole) setCurrentRole(activeRole);
+    else if (pathname.startsWith("/admin")) setCurrentRole("ADMIN");
     else if (pathname.startsWith("/company")) setCurrentRole("COMPANY");
     else if (pathname.startsWith("/university")) setCurrentRole("UNIVERSITY");
     else if (pathname.startsWith("/student")) setCurrentRole("STUDENT");
-  }, [pathname]);
+  }, [pathname, activeRole]);
 
   const switchRole = (role: UserRole) => {
     setCurrentRole(role);
@@ -97,6 +98,9 @@ export default function EnterpriseNavbar() {
                 </Link>
                 <Link href="/university/documents/upload" className="text-[#C88A32] font-bold hover:underline">
                   + Upload Document
+                </Link>
+                <Link href="/university/templates" className={`hover:text-[#0B251D] ${pathname.startsWith("/university/templates") ? "text-[#0B251D] font-bold border-b border-[#0B251D]" : ""}`}>
+                  Templates
                 </Link>
                 <Link href="/university/credentials" className={`hover:text-[#0B251D] ${pathname.startsWith("/university/credentials") ? "text-[#0B251D] font-bold border-b border-[#0B251D]" : ""}`}>
                   Credentials

@@ -172,7 +172,7 @@ export default function PublicSharedPassportPage() {
               href="/company/verify/document"
               className="px-4 py-2.5 rounded-xl bg-ochre text-forest text-xs font-bold hover:bg-ochre/90 transition inline-flex items-center gap-2"
             >
-              Verify Candidate's Raw PDF <ArrowRight className="w-3.5 h-3.5" />
+              Verify Candidate&apos;s Raw PDF <ArrowRight className="w-3.5 h-3.5" />
             </Link>
           </div>
         </div>

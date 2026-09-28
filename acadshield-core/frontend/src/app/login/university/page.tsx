@@ -4,24 +4,28 @@ import React, { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Building2, Eye, EyeOff, Lock, Mail, ArrowRight, ShieldCheck } from "lucide-react";
+import { signIn } from "@/lib/auth";
 
 export default function UniversityLoginPage() {
   const router = useRouter();
-  const [email, setEmail] = useState("registrar@mit.edu");
-  const [password, setPassword] = useState("••••••••••••");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [rememberMe, setRememberMe] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    setTimeout(() => {
-      try {
-        localStorage.setItem("acadshield_active_role_v1", "UNIVERSITY");
-      } catch {}
+    setError(null);
+    try {
+      await signIn(email, password, "UNIVERSITY");
       router.push("/university");
-    }, 600);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Sign in failed.");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -86,13 +90,7 @@ export default function UniversityLoginPage() {
             <div>
               <div className="flex items-center justify-between mb-1.5">
                 <label className="font-bold text-forest">Password</label>
-                <button
-                  type="button"
-                  onClick={() => alert("Password reset link sent to institutional registrar desk.")}
-                  className="text-[11px] text-ochre font-bold hover:underline"
-                >
-                  Forgot Password?
-                </button>
+                <span className="text-[11px] text-forest/50">Contact your platform administrator to reset access.</span>
               </div>
               <div className="relative">
                 <Lock className="w-4 h-4 text-forest/40 absolute left-3.5 top-1/2 -translate-y-1/2" />
@@ -113,25 +111,9 @@ export default function UniversityLoginPage() {
               </div>
             </div>
 
-            <div className="flex items-center justify-between pt-1">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={rememberMe}
-                  onChange={(e) => setRememberMe(e.target.checked)}
-                  className="w-4 h-4 text-forest rounded focus:ring-ochre"
-                />
-                <span className="text-forest/70 font-medium">Remember this browser</span>
-              </label>
-              <button
-                type="button"
-                onClick={() => alert("Registrar Support: support@acadshield.network")}
-                className="text-forest/50 hover:text-forest text-[11px]"
-              >
-                Need Help?
-              </button>
-            </div>
+            <p className="pt-1 text-[11px] text-forest/50">This secure session expires after 15 minutes.</p>
 
+            {error && <p role="alert" className="rounded-lg bg-red-50 p-3 text-xs font-semibold text-red-800">{error}</p>}
             <button
               type="submit"
               disabled={isLoading}

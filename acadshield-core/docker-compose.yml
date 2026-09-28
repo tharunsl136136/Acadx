@@ -1,5 +1,3 @@
-version: "3.8"
-
 services:
   postgres:
     image: postgres:16-alpine
@@ -7,7 +5,7 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-acadshield}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-acadshield_secure_dev_password}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in your local environment}
       POSTGRES_DB: ${POSTGRES_DB:-acadshield_core}
     ports:
       - "${POSTGRES_PORT:-5432}:5432"
@@ -34,23 +32,38 @@ services:
     environment:
       NODE_ENV: production
       PORT: 4000
-      DATABASE_URL: postgresql://${POSTGRES_USER:-acadshield}:${POSTGRES_PASSWORD:-acadshield_secure_dev_password}@postgres:5432/${POSTGRES_DB:-acadshield_core}?schema=public
-      JWT_SECRET: ${JWT_SECRET:-super_secret_jwt_access_token_key_change_in_production_min32chars}
-      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-super_secret_jwt_refresh_token_key_change_in_production_min32chars}
-      INTERNAL_SERVICE_API_KEY: ${INTERNAL_SERVICE_API_KEY:-acad_sec_dev_projb_trust_engine_key_99812450}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-acadshield}:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in your local environment}@postgres:5432/${POSTGRES_DB:-acadshield_core}?schema=public
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in your local environment}
+      INTERNAL_SERVICE_API_KEY: ${INTERNAL_SERVICE_API_KEY:?Set INTERNAL_SERVICE_API_KEY in your local environment}
+      AI_SERVICE_URL: ${AI_SERVICE_URL:-http://host.docker.internal:8000}
+      AI_SERVICE_API_KEY: ${AI_SERVICE_API_KEY}
+      DOCUMENT_STORAGE_DIR: /app/storage/documents
+      MAX_DOCUMENT_BYTES: ${MAX_DOCUMENT_BYTES:-15728640}
       CORS_ORIGIN: http://localhost:3000
       FRONTEND_URL: http://localhost:3000
+      SOURCE_PROVIDER: ${SOURCE_PROVIDER:-unconfigured}
+      VC_ISSUER_INSTITUTION_ID: ${VC_ISSUER_INSTITUTION_ID:-}
+      VC_ISSUER_DID: ${VC_ISSUER_DID:-}
+      VC_ISSUER_KEY_ID: ${VC_ISSUER_KEY_ID:-}
+      VC_ISSUER_PRIVATE_KEY_PEM: ${VC_ISSUER_PRIVATE_KEY_PEM:-}
+      VC_ISSUER_PUBLIC_KEY_PEM: ${VC_ISSUER_PUBLIC_KEY_PEM:-}
+      INITIAL_ADMIN_EMAIL: ${INITIAL_ADMIN_EMAIL:-}
+      INITIAL_ADMIN_PASSWORD: ${INITIAL_ADMIN_PASSWORD:-}
       BLOCKCHAIN_RPC_URL: ${BLOCKCHAIN_RPC_URL:-https://rpc-amoy.polygon.technology}
       CHAIN_ID: ${CHAIN_ID:-80002}
       DEPLOYER_PRIVATE_KEY: ${DEPLOYER_PRIVATE_KEY}
+      BLOCKCHAIN_ISSUER_PRIVATE_KEY: ${BLOCKCHAIN_ISSUER_PRIVATE_KEY:-}
+      BLOCKCHAIN_RECIPIENT_ADDRESS: ${BLOCKCHAIN_RECIPIENT_ADDRESS:-}
       CREDENTIAL_CONTRACT_ADDRESS: ${CREDENTIAL_CONTRACT_ADDRESS}
+      VERIFY_BASE_URL: ${VERIFY_BASE_URL:-http://localhost:3000/verify}
       IDENTITY_CONTRACT_ADDRESS: ${IDENTITY_CONTRACT_ADDRESS}
       ACCESS_CONTROL_CONTRACT_ADDRESS: ${ACCESS_CONTROL_CONTRACT_ADDRESS}
-      IPFS_STORAGE_MODE: ${IPFS_STORAGE_MODE:-mock}
+      IPFS_STORAGE_MODE: ${IPFS_STORAGE_MODE:-disabled}
+      IPFS_JWT: ${IPFS_JWT:-}
     ports:
       - "4000:4000"
     volumes:
-      - ipfs_mock_storage:/app/storage/ipfs
+      - private_documents:/app/storage/documents
     networks:
       - acadshield-network
 
@@ -70,6 +83,7 @@ services:
       NEXT_PUBLIC_CHAIN_NAME: "Polygon Amoy Testnet"
       NEXT_PUBLIC_VERIFY_BASE_URL: http://localhost:3000/verify
       NEXT_PUBLIC_CREDENTIAL_CONTRACT_ADDRESS: ${CREDENTIAL_CONTRACT_ADDRESS}
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in your local environment}
     ports:
       - "3000:3000"
     networks:
@@ -92,7 +106,7 @@ services:
 volumes:
   postgres_data:
     driver: local
-  ipfs_mock_storage:
+  private_documents:
     driver: local
 
 networks:

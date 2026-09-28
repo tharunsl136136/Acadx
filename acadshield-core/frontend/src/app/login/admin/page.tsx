@@ -3,25 +3,29 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ShieldAlert, Eye, EyeOff, Lock, Mail, ArrowRight, KeyRound } from "lucide-react";
+import { ShieldAlert, Eye, EyeOff, Lock, Mail, ArrowRight } from "lucide-react";
+import { signIn } from "@/lib/auth";
 
 export default function AdminLoginPage() {
   const router = useRouter();
-  const [email, setEmail] = useState("root@acadshield.network");
-  const [password, setPassword] = useState("••••••••••••••••");
-  const [mfaCode, setMfaCode] = useState("891042");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    setTimeout(() => {
-      try {
-        localStorage.setItem("acadshield_active_role_v1", "ADMIN");
-      } catch {}
+    setError(null);
+    try {
+      await signIn(email, password, "ADMIN");
       router.push("/admin");
-    }, 600);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Sign in failed.");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -104,26 +108,10 @@ export default function AdminLoginPage() {
               </div>
             </div>
 
-            <div>
-              <label className="block font-bold text-forest mb-1.5">
-                Hardware Token / 6-Digit MFA Key
-              </label>
-              <div className="relative">
-                <KeyRound className="w-4 h-4 text-forest/40 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                <input
-                  type="text"
-                  maxLength={6}
-                  required
-                  value={mfaCode}
-                  onChange={(e) => setMfaCode(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-forest/20 bg-forest/5 text-forest font-mono text-sm tracking-widest focus:outline-none focus:ring-2 focus:ring-ochre"
-                />
-              </div>
+            <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-[11px] text-amber-950 leading-relaxed">
+              <strong>Security notice.</strong> This local deployment has no multi-factor authentication. Use a unique password and do not expose this development instance publicly.
             </div>
-
-            <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-[11px] text-red-900 leading-relaxed">
-              <strong>Authorized platform administrators only.</strong> Public registration is strictly disabled. All authentication attempts and subsequent governance actions are permanently recorded to the immutable audit ledger.
-            </div>
+            {error && <p role="alert" className="rounded-lg bg-red-50 p-3 text-xs font-semibold text-red-800">{error}</p>}
 
             <button
               type="submit"
@@ -131,7 +119,7 @@ export default function AdminLoginPage() {
               className="w-full py-3 rounded-xl bg-forest hover:bg-forest/90 text-white font-bold shadow-md transition flex items-center justify-center gap-2 mt-4"
             >
               {isLoading ? (
-                <span>Verifying Hardware MFA & Permissions...</span>
+                <span>Signing in...</span>
               ) : (
                 <>
                   <span>Secure Sign In</span>

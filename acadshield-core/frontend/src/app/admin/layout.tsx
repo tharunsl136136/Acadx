@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   ShieldAlert,
   Building2,
@@ -13,14 +13,11 @@ import {
   Binary,
   History,
   TrendingUp,
-  Settings,
   LogOut,
   ChevronRight,
   Menu,
   X,
   Lock,
-  Sparkles,
-  Flame
 } from "lucide-react";
 
 export default function AdminAppLayout({
@@ -29,22 +26,32 @@ export default function AdminAppLayout({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const router = useRouter();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const apiBase = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api/v1").replace(/\/$/, "");
+  async function signOut() {
+    try {
+      await fetch(`${apiBase}/auth/logout`, { method: "POST", credentials: "include" });
+    } finally {
+      router.replace("/login/admin");
+      router.refresh();
+    }
+  }
 
   const navItems = [
     { label: "Platform Overview", href: "/admin", icon: ShieldAlert },
-    { label: "Universities (Accreditation)", href: "/admin/universities", icon: Building2 },
-    { label: "Corporate Verifiers", href: "/admin/companies", icon: Briefcase },
-    { label: "Universal Student DIDs", href: "/admin/students", icon: Users },
-    { label: "Global Document Ledger", href: "/admin/documents", icon: FileCheck2 },
-    { label: "Credentials Registry", href: "/admin/credentials", icon: Award },
-    { label: "NFT Token Registry", href: "/admin/nfts", icon: Award },
-    { label: "Document Hashes (SHA-256)", href: "/admin/hashes", icon: Binary },
-    { label: "Verification Requests", href: "/admin/verifications", icon: FileCheck2 },
+    { label: "Institution directory", href: "/admin/universities", icon: Building2 },
+    { label: "Company directory", href: "/admin/companies", icon: Briefcase },
+    { label: "Students (demo)", href: "/admin/students", icon: Users },
+    { label: "Documents (demo)", href: "/admin/documents", icon: FileCheck2 },
+    { label: "Credentials (demo)", href: "/admin/credentials", icon: Award },
+    { label: "NFT registry (demo)", href: "/admin/nfts", icon: Award },
+    { label: "Hash lookup (demo)", href: "/admin/hashes", icon: Binary },
+    { label: "Verifications (demo)", href: "/admin/verifications", icon: FileCheck2 },
     { label: "Blockchain Provenance", href: "/admin/blockchain", icon: Binary },
-    { label: "Security & MFA Events", href: "/admin/security", icon: Lock },
-    { label: "Immutable Audit Log", href: "/admin/audit", icon: History },
-    { label: "Network Analytics", href: "/admin/analytics", icon: TrendingUp },
+    { label: "Security events (demo)", href: "/admin/security", icon: Lock },
+    { label: "Audit History", href: "/admin/audit", icon: History },
+    { label: "Network analytics (demo)", href: "/admin/analytics", icon: TrendingUp },
   ];
 
   return (
@@ -78,20 +85,20 @@ export default function AdminAppLayout({
         <div className="flex items-center gap-3">
           <div className="hidden sm:flex items-center gap-2 px-3 py-1 rounded-full bg-red-100 border border-red-300 text-[11px] font-bold text-red-900">
             <ShieldAlert className="w-3.5 h-3.5 text-red-700" />
-            PLATFORM SUPERADMIN
+                ADMIN WORKSPACE
           </div>
           <div className="hidden md:block text-right">
-            <div className="text-xs font-bold text-forest">Root Administrator</div>
-            <div className="text-[10px] text-forest/50 font-mono">root@acadshield.network</div>
+            <div className="text-xs font-bold text-forest">Signed-in administrator</div>
+            <div className="text-[10px] text-forest/50 font-mono">Core registry access</div>
           </div>
-          <Link
-            href="/login/admin"
+          <button
+            onClick={signOut}
             className="px-3 py-1.5 rounded-xl border border-forest/20 hover:bg-forest/5 text-forest text-xs font-bold transition flex items-center gap-1.5"
             title="Sign Out"
           >
             <LogOut className="w-3.5 h-3.5 text-ochre" />
             <span className="hidden sm:inline">Sign Out</span>
-          </Link>
+          </button>
         </div>
       </header>
 
@@ -130,11 +137,11 @@ export default function AdminAppLayout({
             </div>
           </div>
 
-          {/* Admin Audit Guarantee Badge */}
+          {/* Audit storage limitation */}
           <div className="p-3.5 rounded-2xl bg-red-50 border border-red-200 space-y-1.5 text-[11px] text-red-950">
-            <span className="font-bold block">Audit Guarantee:</span>
+            <span className="font-bold block">Audit storage:</span>
             <p className="leading-snug">
-              Every administrative approval, suspension, or key rotation generates an immutable audit record.
+              Core records key actions in PostgreSQL. Append-only or tamper-proof database enforcement is not configured.
             </p>
           </div>
         </aside>
@@ -171,12 +178,12 @@ export default function AdminAppLayout({
                 </nav>
               </div>
 
-              <Link
-                href="/login/admin"
+              <button
+                onClick={signOut}
                 className="w-full py-2.5 text-center rounded-xl bg-forest text-white text-xs font-bold"
               >
                 Sign Out
-              </Link>
+              </button>
             </div>
           </div>
         )}

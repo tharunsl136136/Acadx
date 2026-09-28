@@ -1,218 +1,48 @@
 "use client";
 
-import React, { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { usePlatformState } from "@/lib/platform-state";
-import {
-  FileCheck2,
-  ShieldCheck,
-  Binary,
-  Award,
-  CheckCircle2,
-  AlertTriangle,
-  XCircle,
-  ExternalLink,
-  ChevronLeft,
-  Copy,
-  Download,
-  Building2,
-  Users,
-  Clock,
-  Sparkles
-} from "lucide-react";
+import { AlertTriangle, ArrowLeft, Download, FileCheck2 } from "lucide-react";
+
+type Verification = { id: string; credentialId: string | null; documentId: string | null; decision: string; deterministicEvidence: Record<string, unknown>; aiEvidence: unknown; sourceStatus: string | null; createdAt: string; credential: { id: string; credentialType: string; issuerDid: string; credentialSha256: string; document: { documentType: string | null; originalFileName: string; documentSha256: string } | null } | null };
+const apiBase = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api/v1").replace(/\/$/, "");
 
 export default function VerificationDossierPage() {
-  const params = useParams();
-  const verifId = params?.id as string;
-  const { verifications } = usePlatformState();
-  const [copiedKey, setCopiedKey] = useState<string | null>(null);
+  const params = useParams<{ id: string }>();
+  const [record, setRecord] = useState<Verification | null>(null);
+  const [error, setError] = useState("");
 
-  const verif = verifications.find((v) => v.id === verifId) || verifications[0];
+  useEffect(() => {
+    let active = true;
+    fetch(`${apiBase}/company/verifications/${encodeURIComponent(params.id)}`, { credentials: "include", cache: "no-store" })
+      .then(async (response) => {
+        const body = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(response.status === 404 ? "Verification record not found for this company." : "Could not retrieve verification evidence.");
+        return body.verification as Verification;
+      })
+      .then((body) => { if (active) setRecord(body); })
+      .catch((cause: unknown) => { if (active) setError(cause instanceof Error ? cause.message : "Could not retrieve evidence."); });
+    return () => { active = false; };
+  }, [params.id]);
 
-  const copyToClipboard = (text: string, key: string) => {
-    navigator.clipboard.writeText(text);
-    setCopiedKey(key);
-    setTimeout(() => setCopiedKey(null), 2000);
-  };
-
-  const isMatch = verif.registeredHash === verif.submittedHash;
+  function exportEvidence() {
+    if (!record) return;
+    const url = URL.createObjectURL(new Blob([JSON.stringify(record, null, 2)], { type: "application/json" }));
+    const anchor = document.createElement("a");
+    anchor.href = url; anchor.download = `verification-${record.id}.json`; anchor.click(); URL.revokeObjectURL(url);
+  }
 
   return (
-    <div className="p-6 lg:p-8 space-y-8 max-w-5xl mx-auto">
-      {/* Top Header */}
-      <div className="flex items-center justify-between">
-        <Link
-          href="/company/verifications"
-          className="inline-flex items-center gap-2 text-xs font-semibold text-forest/70 hover:text-forest transition"
-        >
-          <ChevronLeft className="w-4 h-4" />
-          Back to Verification History
-        </Link>
-        <button
-          onClick={() => {
-            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(verif, null, 2));
-            const downloadAnchor = document.createElement("a");
-            downloadAnchor.setAttribute("href", dataStr);
-            downloadAnchor.setAttribute("download", `verification-dossier-${verif.id}.json`);
-            document.body.appendChild(downloadAnchor);
-            downloadAnchor.click();
-            downloadAnchor.remove();
-          }}
-          className="px-3.5 py-1.5 rounded-xl border border-forest/20 text-xs font-bold text-forest hover:bg-forest/5 flex items-center gap-1.5 transition"
-        >
-          <Download className="w-3.5 h-3.5 text-ochre" />
-          Export Verification Audit JSON
-        </button>
-      </div>
-
-      {/* Verification Header Banner */}
-      <div className="bg-white/80 backdrop-blur border border-forest/15 rounded-3xl p-6 lg:p-8 shadow-sm">
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-          <div className="flex items-start gap-4">
-            <div
-              className={`w-16 h-16 rounded-2xl flex items-center justify-center font-bold text-2xl shadow ${
-                verif.result === "VERIFIED"
-                  ? "bg-emerald-100 text-emerald-800 border border-emerald-300"
-                  : "bg-red-100 text-red-800 border border-red-300"
-              }`}
-            >
-              {verif.result === "VERIFIED" ? (
-                <CheckCircle2 className="w-9 h-9" />
-              ) : (
-                <AlertTriangle className="w-9 h-9" />
-              )}
-            </div>
-            <div className="space-y-1">
-              <div className="flex items-center gap-3">
-                <span className="text-[10px] font-mono uppercase tracking-widest text-forest/50 font-bold">
-                  Dossier ID: {verif.id}
-                </span>
-                <span
-                  className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
-                    verif.result === "VERIFIED"
-                      ? "bg-emerald-100 text-emerald-800 border border-emerald-300"
-                      : "bg-red-100 text-red-800 border border-red-300"
-                  }`}
-                >
-                  {verif.result}
-                </span>
-              </div>
-              <h1 className="text-2xl lg:text-3xl font-extrabold text-forest tracking-tight">
-                {verif.documentType}
-              </h1>
-              <p className="text-forest/70 text-xs font-medium">
-                Evaluated for candidate <strong className="text-forest">{verif.candidateName}</strong>   Issuing Entity:{" "}
-                <strong className="text-forest">{verif.universityName}</strong>
-              </p>
-            </div>
-          </div>
-
-          <div className="p-4 bg-forest/5 rounded-2xl border border-forest/10 text-xs space-y-1">
-            <div className="text-forest/60 text-[11px]">Evaluation Timestamp:</div>
-            <div className="font-bold text-forest">{new Date(verif.verificationTime).toLocaleString()}</div>
-            <div className="text-[11px] text-forest/60 pt-1">Evaluating Enterprise:</div>
-            <div className="font-semibold text-forest">{verif.companyName}</div>
-          </div>
-        </div>
-      </div>
-
-      {/* Side-by-Side SHA-256 Fingerprint Inspection */}
-      <div className="bg-white border border-forest/15 rounded-3xl p-6 lg:p-8 shadow-sm space-y-6">
-        <div>
-          <h3 className="text-base font-extrabold text-forest">SHA-256 Cryptographic Fingerprint Comparison</h3>
-          <p className="text-xs text-forest/70 mt-0.5">
-            Bit-for-bit comparison between the authoritative university ledger hash and the raw document submitted by the candidate.
-          </p>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="p-4 rounded-2xl bg-forest/5 border border-forest/15 space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-forest/60">
-                Authoritative Registered Hash
-              </span>
-              <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 font-bold">
-                UNIVERSITY LEDGER
-              </span>
-            </div>
-            <div className="font-mono text-xs text-forest break-all bg-white p-3 rounded-xl border border-forest/10">
-              {verif.registeredHash}
-            </div>
-            <p className="text-[11px] text-forest/60">Registered by registrar upon graduation confirmation.</p>
-          </div>
-
-          <div className="p-4 rounded-2xl bg-forest/5 border border-forest/15 space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-forest/60">
-                Candidate-Submitted File Hash
-              </span>
-              <span
-                className={`text-[10px] font-mono px-2 py-0.5 rounded font-bold ${
-                  isMatch ? "bg-emerald-100 text-emerald-800" : "bg-red-100 text-red-800"
-                }`}
-              >
-                {isMatch ? "EXACT MATCH" : "MISMATCH"}
-              </span>
-            </div>
-            <div
-              className={`font-mono text-xs break-all bg-white p-3 rounded-xl border ${
-                isMatch ? "border-emerald-300 text-forest" : "border-red-300 text-red-900"
-              }`}
-            >
-              {verif.submittedHash}
-            </div>
-            <p className="text-[11px] text-forest/60">
-              {isMatch
-                ? "Cryptographic digest matches byte-for-byte."
-                : "The submitted file does not match the document fingerprint registered by the issuing institution."}
-            </p>
-          </div>
-        </div>
-
-        {/* Verification Checkpoints Matrix */}
-        <div className="border-t border-forest/10 pt-6 space-y-3">
-          <h4 className="text-xs font-bold uppercase tracking-wider text-forest/60">
-            Automated Multi-Point Integrity Checkpoints
-          </h4>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
-            <div className="p-3 bg-forest/5 rounded-xl flex items-center gap-2">
-              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-              <span>Institutional Key Valid</span>
-            </div>
-            <div className="p-3 bg-forest/5 rounded-xl flex items-center gap-2">
-              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-              <span>W3C VC Signature Match</span>
-            </div>
-            <div className="p-3 bg-forest/5 rounded-xl flex items-center gap-2">
-              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-              <span>ERC-721 Token Bound</span>
-            </div>
-            <div className="p-3 bg-forest/5 rounded-xl flex items-center gap-2">
-              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-              <span>Polygon Amoy Consensus</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Blockchain Evidence Card */}
-        <div className="p-4 rounded-2xl bg-white border border-forest/15 space-y-2">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-forest uppercase tracking-wider">Blockchain Anchor</span>
-            <a
-              href={`https://amoy.polygonscan.com/tx/${verif.blockchainTx}`}
-              target="_blank"
-              rel="noreferrer"
-              className="text-xs font-bold text-ochre hover:underline flex items-center gap-1"
-            >
-              PolygonScan <ExternalLink className="w-3 h-3" />
-            </a>
-          </div>
-          <div className="font-mono text-xs text-forest/70 break-all bg-forest/5 p-2 rounded-lg">
-            Tx: {verif.blockchainTx}
-          </div>
-        </div>
-      </div>
-    </div>
+    <main className="p-6 lg:p-8 space-y-7 max-w-5xl mx-auto">
+      <div className="flex items-center justify-between"><Link href="/company/verifications" className="inline-flex items-center gap-2 text-sm font-semibold"><ArrowLeft className="h-4 w-4" />Back to history</Link>{record && <button onClick={exportEvidence} className="inline-flex items-center gap-2 rounded-xl border px-4 py-2 text-xs font-bold"><Download className="h-4 w-4" />Export evidence JSON</button>}</div>
+      {error && <section role="alert" className="rounded-2xl border border-amber-300 bg-amber-50 p-6 text-sm flex gap-3"><AlertTriangle className="h-5 w-5 shrink-0" />{error}</section>}
+      {!record && !error && <div role="status" className="rounded-2xl border bg-white p-6">Loading verification record…</div>}
+      {record && <>
+        <section className="rounded-3xl border border-forest/15 bg-white p-6 lg:p-8 shadow-sm"><div className="flex items-start gap-3"><FileCheck2 className="h-8 w-8 text-ochre" /><div><div className="text-xs uppercase font-bold text-forest/50">Stored verification decision</div><h1 className="text-2xl font-extrabold">{record.decision}</h1><div className="mt-1 text-xs text-forest/60">{new Date(record.createdAt).toLocaleString()} · {record.id}</div></div></div></section>
+        <section className="rounded-3xl border border-forest/15 bg-white p-6 lg:p-8 shadow-sm space-y-5"><h2 className="text-lg font-extrabold">Credential and source</h2><dl className="grid sm:grid-cols-2 gap-4 text-sm"><div><dt className="text-xs uppercase font-bold text-forest/50">Credential ID</dt><dd className="font-mono break-all">{record.credentialId || "Not found"}</dd></div><div><dt className="text-xs uppercase font-bold text-forest/50">Document ID</dt><dd className="font-mono break-all">{record.documentId || "Not found"}</dd></div><div><dt className="text-xs uppercase font-bold text-forest/50">Credential type</dt><dd>{record.credential?.credentialType || "Unavailable"}</dd></div><div><dt className="text-xs uppercase font-bold text-forest/50">Source</dt><dd>{record.sourceStatus || "Not checked"}</dd></div><div><dt className="text-xs uppercase font-bold text-forest/50">Submitted file SHA-256</dt><dd className="font-mono break-all">{String(record.deterministicEvidence.submittedFileSha256 || "Not recorded")}</dd></div><div><dt className="text-xs uppercase font-bold text-forest/50">Registered file SHA-256</dt><dd className="font-mono break-all">{record.credential?.document?.documentSha256 || "Not recorded"}</dd></div></dl></section>
+        <section className="rounded-3xl border border-forest/15 bg-white p-6 lg:p-8 shadow-sm space-y-5"><h2 className="text-lg font-extrabold">Deterministic evidence</h2><pre className="overflow-auto rounded-xl bg-forest/5 p-4 text-xs">{JSON.stringify(record.deterministicEvidence, null, 2)}</pre><h2 className="text-lg font-extrabold">AI evidence</h2><pre className="overflow-auto rounded-xl bg-forest/5 p-4 text-xs">{JSON.stringify(record.aiEvidence, null, 2)}</pre><p className="text-xs text-forest/60">AI evidence provides risk context only; it does not override issuer signature, lifecycle, hash, source, or chain results.</p></section>
+      </>}
+    </main>
   );
 }

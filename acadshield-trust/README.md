@@ -1,7 +1,7 @@
 # ACADSHIELD TRUST (PROJECT B)
-> **Employer Trust Intelligence, AI Risk Analysis & Enterprise Verification Platform**
+> **Employer verification API and document evidence service**
 
-ACADSHIELD TRUST is the employer-facing intelligence layer of the **ACADSHIELD X** digital trust infrastructure. It consumes raw cryptographic credentials from **ACADSHIELD CORE (Project A)** via decoupled REST providers, synthesizes verified candidate **Trust Passports**, builds relational **Trust Graphs**, and provides auxiliary **AI Anomaly Detection** without compromising deterministic cryptographic proofs.
+ACADSHIELD TRUST is the employer-facing service layer of **ACADSHIELD X**. Its backend can request deterministic credential checks from Core and optional evidence analysis from the AI service. The candidate Trust Passport and graph portals are not implemented against live, consented candidate data; their frontend routes identify this limitation. AI output is review evidence and does not authenticate a document or issuer.
 
 ---
 

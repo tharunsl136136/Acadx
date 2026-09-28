@@ -1,30 +1,26 @@
-﻿# ACADSHIELD X
-> **Digital Trust Infrastructure for Education, Skills, and Employment**
+# ACADSHIELD X
 
-This is the unified root repository containing both independent platforms:
+ACADSHIELD X contains two services:
 
-1. **`acadshield-core/` (PROJECT A)**
-   - Credential Infrastructure Layer
-   - Institutions, Students, Issuers, DIDs
-   - Verifiable Credentials (W3C concepts)
-   - Polygon Blockchain Smart Contracts & Tamper-Proof Provenance
-   - IPFS Document Storage & Cryptographic Hashing
-   - Zero-Login Public Verification & QR Generation
+- `acadshield-core/`: university source registry, credential issuance and lifecycle, deterministic verification, public resolver, company verification, and the Core web portal.
+- `acadshield-trust/`: employer verification API and evidence-only document analysis service.
 
-2. **`acadshield-trust/` (PROJECT B)**
-   - Employer Verification & Trust Intelligence Layer
-   - Trust Passports & Relational Trust Graphs
-   - Python FastAPI AI Anomaly Detection Service (Scikit-Learn)
-   - Enterprise API Key Platform & Usage Quota Metering
-   - Recruiter Management & Verification History
+## Current implementation
 
----
+Core uses PostgreSQL/Prisma, private document storage, signed VC-JWTs, optional explicit NFT mint/revoke, and optional PII-free Pinata metadata. University and company flows for source review, templates, credentials, QR resolution, and verification history are API-backed. Selected admin oversight pages read live database records. Unsupported candidate, Trust Passport/graph, student, and analytics features are clearly marked as unavailable or demo-only; they do not present sample credentials as real evidence.
 
-## Directory Structure
+The AI service supports optional PaddleOCR, heuristic classification and extraction, layout summaries, template field/page rules, metadata inspection, weak JPEG recompression measurements, cross-document identity comparisons, and a trainable Isolation Forest reference-distribution signal. It does not decide authenticity. No model dataset, trained artifact, or performance result is included.
 
+## Local verification
+
+From the repository root:
+
+```powershell
+npm test
 ```
-E:\PROJECT\ACADSHIELD\
-├── acadshield-core/     # Project A (Backend, Frontend, Contracts, Docker, Docs)
-├── acadshield-trust/    # Project B (Backend, Frontend, AI Service, Docker, Mocks)
-└── package.json         # Master workspace orchestrator
-```
+
+Frontend build/lint, Prisma checks, and individual backend build commands are documented in each project. See [Core implementation status](acadshield-core/docs/IMPLEMENTATION_STATUS.md) and [AI service notes](acadshield-trust/ai-service/README.md).
+
+## External configuration
+
+Live database deployment, blockchain transaction testing, Pinata uploads, and NAD/DigiLocker checks require deployment resources and official credentials. DigiLocker/NAD integrations are deliberately unconfigured until approved API specifications and credentials are provided. Docker Compose files are present, but this checkout has not been deployed as a live stack.

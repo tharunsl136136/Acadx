@@ -29,11 +29,14 @@ import {
 export default function UniversityDocumentReviewPage() {
   const params = useParams();
   const router = useRouter();
-  const docId = (params?.id as string) || "doc_mit_degree_001";
+  const docId = params?.id as string;
   const { documents, credentials } = usePlatformState();
   const [copied, setCopied] = useState(false);
 
-  const doc = documents.find((d) => d.id === docId) || documents[0];
+  const doc = documents.find((d) => d.id === docId);
+  if (!doc) {
+    return <div className="m-8 rounded-2xl border border-forest/15 bg-white p-8 text-center"><h1 className="text-xl font-bold">Document not found</h1><p className="mt-2 text-sm text-forest/70">No document record matches this identifier.</p><Link className="mt-4 inline-block text-sm font-bold underline" href="/university/documents">Return to documents</Link></div>;
+  }
   const cred = credentials.find((c) => c.documentId === doc.id || c.id === doc.credentialId);
 
   const copyHash = () => {

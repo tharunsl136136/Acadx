@@ -162,7 +162,7 @@ export default function DocumentValidationPipeline({
               <div className="text-[11px] text-forest/70 mt-0.5 leading-snug">{step.description}</div>
               {step.details && (
                 <div className="text-[10px] font-mono text-forest/50 mt-1 font-semibold truncate">
-                  // {step.details}
+                  Evidence: {step.details}
                 </div>
               )}
             </div>

@@ -8,6 +8,10 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
+ARG INSTALL_OCR=false
+COPY requirements-ocr.txt ./
+RUN if [ "$INSTALL_OCR" = "true" ]; then pip install --no-cache-dir -r requirements-ocr.txt; fi
+
 COPY app ./app
 
 EXPOSE 8000

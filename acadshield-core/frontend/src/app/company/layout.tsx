@@ -73,11 +73,11 @@ export default function CompanyAppLayout({
         <div className="flex items-center gap-3">
           <div className="hidden sm:flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-50 border border-emerald-300 text-[11px] font-bold text-emerald-800">
             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-            ANTHROPIC PBC • VERIFIED ENTERPRISE
+            COMPANY WORKSPACE
           </div>
           <div className="hidden md:block text-right">
-            <div className="text-xs font-bold text-forest">Talent Assurance Team</div>
-            <div className="text-[10px] text-forest/50 font-mono">Quota: 389/5,000 API Checks</div>
+            <div className="text-xs font-bold text-forest">Verification workspace</div>
+            <div className="text-[10px] text-forest/50 font-mono">Registry backed</div>
           </div>
           <Link
             href="/login/company"

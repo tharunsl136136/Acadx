@@ -1,192 +1,31 @@
 "use client";
 
-import React, { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import EnterpriseNavbar from "@/components/EnterpriseNavbar";
-import { usePlatformState } from "@/lib/platform-state";
-import {
-  Briefcase,
-  Search,
-  CheckCircle2,
-  AlertTriangle,
-  XCircle,
-  Ban,
-  Check,
-  TrendingUp,
-  Building2
-} from "lucide-react";
+
+type Company = { id: string; name: string; domain: string | null; status: string; createdAt: string; _count: { users: number; verifications: number } };
+const apiBase = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api/v1").replace(/\/$/, "");
 
 export default function AdminCompaniesPage() {
-  const { companies, updateCompanyStatus } = usePlatformState();
-  const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState("ALL");
-
-  const filtered = companies.filter((comp) => {
-    const matchesSearch =
-      comp.legalName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      comp.domain.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      comp.industry.toLowerCase().includes(searchTerm.toLowerCase());
-
-    if (statusFilter === "ALL") return matchesSearch;
-    return matchesSearch && comp.status === statusFilter;
-  });
-
-  return (
-    <div className="min-h-screen bg-canvas-texture text-forest pb-24">
-      <EnterpriseNavbar activeRole="ADMIN" />
-
-      {/* Header */}
-      <section className="border-b border-forest/10 bg-white/70 backdrop-blur px-6 py-8">
-        <div className="max-w-7xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div>
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-forest/5 border border-forest/10 text-xs font-semibold uppercase tracking-wider text-forest/80 mb-3">
-              <Briefcase className="w-3.5 h-3.5 text-ochre" />
-              Corporate Verifier Oversight
-            </div>
-            <h1 className="text-3xl lg:text-4xl font-extrabold tracking-tight headline-shadow font-serif">
-              Corporate Verifiers Directory
-            </h1>
-            <p className="mt-1 text-forest/75 text-sm max-w-xl">
-              Inspect enterprise verifiers utilizing AcadShield X for candidate credential background checks and hash verification API access.
-            </p>
-          </div>
-        </div>
-      </section>
-
-      <main className="max-w-7xl mx-auto px-6 pt-8 space-y-6">
-        {/* Search */}
-        <div className="bg-white border border-forest/10 rounded-2xl p-4 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="relative w-full sm:w-96">
-            <Search className="w-4 h-4 text-forest/40 absolute left-3.5 top-1/2 -translate-y-1/2" />
-            <input
-              type="text"
-              placeholder="Search by company name, corporate domain, industry..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 rounded-xl border border-forest/20 bg-forest/5 text-xs text-forest focus:outline-none focus:ring-2 focus:ring-ochre"
-            />
-          </div>
-
-          <div className="flex items-center gap-2 w-full sm:w-auto">
-            <span className="text-xs font-bold text-forest/60">Status:</span>
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="px-3 py-2 rounded-xl border border-forest/20 bg-forest/5 text-xs font-medium text-forest focus:outline-none focus:ring-2 focus:ring-ochre"
-            >
-              <option value="ALL">All Statuses ({companies.length})</option>
-              <option value="VERIFIED">Verified</option>
-              <option value="PENDING">Pending Review</option>
-              <option value="SUSPENDED">Suspended</option>
-            </select>
-          </div>
-        </div>
-
-        {/* Companies Table */}
-        <div className="bg-white border border-forest/10 rounded-2xl shadow-sm overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-forest/5 border-b border-forest/10 text-forest/70 font-semibold uppercase tracking-wider text-[11px]">
-                <tr>
-                  <th className="py-3.5 px-6">Company & Domain</th>
-                  <th className="py-3.5 px-6">Industry Sector</th>
-                  <th className="py-3.5 px-6">Verification Scale</th>
-                  <th className="py-3.5 px-6">API Keys</th>
-                  <th className="py-3.5 px-6">Status</th>
-                  <th className="py-3.5 px-6 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-forest/10">
-                {filtered.map((comp) => (
-                  <tr key={comp.id} className="hover:bg-forest/5 transition">
-                    <td className="py-4 px-6">
-                      <div className="font-bold text-forest text-sm">{comp.legalName}</div>
-                      <div className="font-mono text-[11px] text-forest/60">{comp.domain}</div>
-                      <div className="font-mono text-[10px] text-forest/40">ID: {comp.id}</div>
-                    </td>
-
-                    <td className="py-4 px-6">
-                      <span className="font-medium text-forest">{comp.industry}</span>
-                    </td>
-
-                    <td className="py-4 px-6">
-                      <div className="text-forest font-bold">
-                        {comp.verificationsCount} Checks
-                      </div>
-                      <div className="text-forest/60 text-[10px]">
-                        {comp.candidatesCount} Candidates
-                      </div>
-                    </td>
-
-                    <td className="py-4 px-6">
-                      <span className="inline-block px-2 py-0.5 rounded font-mono text-[10px] bg-forest/5 text-forest/80 border border-forest/10">
-                        {comp.apiKeysCount} Active Keys
-                      </span>
-                    </td>
-
-                    <td className="py-4 px-6">
-                      <span
-                        className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full font-bold text-[10px] ${
-                          comp.status === "VERIFIED"
-                            ? "bg-emerald-100 text-emerald-800"
-                            : comp.status === "PENDING"
-                            ? "bg-amber-100 text-amber-800"
-                            : "bg-red-100 text-red-800"
-                        }`}
-                      >
-                        {comp.status === "VERIFIED" ? (
-                          <>
-                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                            VERIFIED VERIFIER
-                          </>
-                        ) : comp.status === "PENDING" ? (
-                          <>
-                            <AlertTriangle className="w-3.5 h-3.5 text-amber-600" />
-                            PENDING REVIEW
-                          </>
-                        ) : (
-                          <>
-                            <XCircle className="w-3.5 h-3.5 text-red-600" />
-                            SUSPENDED
-                          </>
-                        )}
-                      </span>
-                    </td>
-
-                    <td className="py-4 px-6 text-right">
-                      <div className="flex items-center justify-end gap-1.5">
-                        {comp.status === "PENDING" && (
-                          <button
-                            onClick={() => updateCompanyStatus(comp.id, "VERIFIED")}
-                            className="px-2.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] transition flex items-center gap-1 shadow-sm"
-                          >
-                            <Check className="w-3.5 h-3.5" /> Approve
-                          </button>
-                        )}
-                        {comp.status === "VERIFIED" && (
-                          <button
-                            onClick={() => updateCompanyStatus(comp.id, "SUSPENDED")}
-                            className="px-2.5 py-1.5 rounded-lg bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 font-bold text-[11px] transition flex items-center gap-1"
-                          >
-                            <Ban className="w-3.5 h-3.5" /> Suspend
-                          </button>
-                        )}
-                        {comp.status === "SUSPENDED" && (
-                          <button
-                            onClick={() => updateCompanyStatus(comp.id, "VERIFIED")}
-                            className="px-2.5 py-1.5 rounded-lg bg-forest text-white font-bold text-[11px] transition flex items-center gap-1"
-                          >
-                            Reactivate
-                          </button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </main>
-    </div>
-  );
+  const [companies, setCompanies] = useState<Company[]>([]);
+  const [message, setMessage] = useState("Loading companies…");
+  const [busy, setBusy] = useState<string | null>(null);
+  const load = useCallback(async () => {
+    const response = await fetch(`${apiBase}/admin/companies`, { credentials: "include" });
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(response.status === 401 || response.status === 403 ? "Sign in with an active administrator account." : "Company registry is unavailable.");
+    setCompanies(body.companies || []); setMessage("");
+  }, []);
+  useEffect(() => { load().catch((error: Error) => setMessage(error.message)); }, [load]);
+  async function activate(company: Company) {
+    setBusy(company.id); setMessage("");
+    try {
+      const response = await fetch(`${apiBase}/admin/companies/${encodeURIComponent(company.id)}/activate`, { method: "POST", credentials: "include" });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(body.error || "Company could not be activated.");
+      await load(); setMessage(`${company.name} is active.`);
+    } catch (error) { setMessage(error instanceof Error ? error.message : "Company could not be activated."); }
+    finally { setBusy(null); }
+  }
+  return <div className="min-h-screen bg-canvas-texture pb-20 text-forest"><EnterpriseNavbar activeRole="ADMIN"/><main className="mx-auto max-w-6xl space-y-6 px-6 py-8"><header className="rounded-2xl border border-forest/10 bg-white p-6"><p className="text-xs font-bold uppercase tracking-widest text-forest/55">Administration · Core registry</p><h1 className="mt-2 font-serif text-4xl font-extrabold">Companies</h1><p className="mt-2 text-sm text-forest/70">Company accounts and verification counts from PostgreSQL.</p></header>{message && <div role="status" className="rounded-xl border border-forest/10 bg-white p-4 text-sm">{message}</div>}<section className="space-y-3">{companies.map((company) => <article key={company.id} className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-forest/10 bg-white p-5"><div><h2 className="font-bold">{company.name}</h2><p className="text-xs text-forest/60">{company.domain || "No domain"} · {company._count.users} users · {company._count.verifications} verifications</p><code className="text-[10px] text-forest/50">{company.id}</code></div><div className="flex items-center gap-3"><span className="rounded-full bg-forest/5 px-3 py-1 text-xs font-bold">{company.status}</span>{company.status === "PENDING" && <button disabled={busy !== null} onClick={() => activate(company)} className="rounded-lg bg-forest px-4 py-2 text-xs font-bold text-white disabled:opacity-50">{busy === company.id ? "Activating…" : "Activate"}</button>}</div></article>)}{companies.length === 0 && !message && <p className="rounded-xl bg-white p-5 text-sm text-forest/60">No company records.</p>}</section></main></div>;
 }

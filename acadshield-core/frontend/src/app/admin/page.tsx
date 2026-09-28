@@ -1,234 +1,109 @@
 "use client";
 
-import React from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { usePlatformState } from "@/lib/platform-state";
-import {
-  ShieldAlert,
-  Building2,
-  Briefcase,
-  Users,
-  Award,
-  FileCheck2,
-  History,
-  CheckCircle2,
-  AlertTriangle,
-  XCircle,
-  Clock,
-  ArrowRight,
-  TrendingUp,
-  ShieldCheck,
-  Flame
-} from "lucide-react";
+import { Activity, ArrowDownRight, ArrowRight, Award, Building2, BriefcaseBusiness, Clock3, FileCheck2, RefreshCw, ShieldCheck } from "lucide-react";
+
+type Counts = Record<string, number>;
+type Overview = { generatedAt: string; institutions: Counts; companies: Counts; documents: Counts; credentials: Counts; verifications: Counts };
+type AuditEntry = { id: string; action: string; entityType: string; entityId: string | null; createdAt: string; actor: { email: string; role: string } | null };
+type ChainStatus = { writeIntegrationConfigured: boolean; configuredChainId: string | null; storedReceiptCount: number; note: string };
+type Readiness = { status: string; database: string };
+
+const apiBase = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api/v1").replace(/\/$/, "");
+const apiOrigin = apiBase.replace(/\/api\/v1\/?$/, "");
+const cards: Array<{ key: keyof Omit<Overview, "generatedAt">; title: string; href: string; icon: typeof Building2; accent: string }> = [
+  { key: "institutions", title: "Institutions", href: "/admin/universities", icon: Building2, accent: "bg-emerald-50 text-emerald-800" },
+  { key: "companies", title: "Companies", href: "/admin/companies", icon: BriefcaseBusiness, accent: "bg-sky-50 text-sky-800" },
+  { key: "documents", title: "Source documents", href: "/admin/documents", icon: FileCheck2, accent: "bg-amber-50 text-amber-900" },
+  { key: "credentials", title: "Credentials", href: "/admin/credentials", icon: Award, accent: "bg-violet-50 text-violet-800" },
+  { key: "verifications", title: "Verifications", href: "/admin/verifications", icon: ShieldCheck, accent: "bg-teal-50 text-teal-800" },
+];
+
+async function readJson<T>(url: string, authenticated = true): Promise<T> {
+  const response = await fetch(url, { credentials: authenticated ? "include" : "same-origin", cache: "no-store" });
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(response.status === 401 || response.status === 403 ? "Your admin session expired. Sign in again." : "Could not load current registry data.");
+  return body as T;
+}
+
+function total(counts: Counts): number {
+  return Object.values(counts).reduce((sum, count) => sum + count, 0);
+}
 
 export default function AdminDashboardPage() {
-  const { institutions, companies, students, documents, credentials, verifications, auditLogs } =
-    usePlatformState();
+  const [overview, setOverview] = useState<Overview | null>(null);
+  const [audit, setAudit] = useState<AuditEntry[]>([]);
+  const [chain, setChain] = useState<ChainStatus | null>(null);
+  const [readiness, setReadiness] = useState<Readiness | null>(null);
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(true);
 
-  const totalUniversities = institutions.length;
-  const verifiedUniversities = institutions.filter((i) => i.status === "VERIFIED").length;
-  const pendingUniversities = institutions.filter((i) => i.status === "PENDING").length;
-  const suspendedUniversities = institutions.filter((i) => i.status === "SUSPENDED").length;
+  const refresh = useCallback(async () => {
+    setLoading(true);
+    setError("");
+    const [overviewResult, auditResult, chainResult, readyResult] = await Promise.allSettled([
+      readJson<Overview>(`${apiBase}/admin/overview`),
+      readJson<{ entries: AuditEntry[] }>(`${apiBase}/admin/audit?limit=6`),
+      readJson<ChainStatus>(`${apiBase}/admin/blockchain`),
+      readJson<Readiness>(`${apiOrigin}/ready`, false),
+    ]);
+    if (overviewResult.status === "fulfilled") setOverview(overviewResult.value);
+    else setError(overviewResult.reason instanceof Error ? overviewResult.reason.message : "Registry counts are unavailable.");
+    if (auditResult.status === "fulfilled") setAudit(auditResult.value.entries || []);
+    if (chainResult.status === "fulfilled") setChain(chainResult.value);
+    if (readyResult.status === "fulfilled") setReadiness(readyResult.value);
+    setLoading(false);
+  }, []);
 
-  const totalCompanies = companies.length;
-  const verifiedCompanies = companies.filter((c) => c.status === "VERIFIED").length;
+  useEffect(() => { void refresh(); }, [refresh]);
 
-  const activeCreds = credentials.filter((c) => c.status === "ACTIVE").length;
-  const revokedCreds = credentials.filter((c) => c.status === "REVOKED").length;
-
-  const successfulVerifs = verifications.filter((v) => v.result === "VERIFIED").length;
-  const failedVerifs = verifications.filter((v) => v.result !== "VERIFIED").length;
-
-  return (
-    <div className="text-forest pb-24">
-      
-
-      {/* Header */}
-      <section className="border-b border-forest/10 bg-white/40 backdrop-blur px-6 py-6 rounded-2xl mb-8">
-        <div className="max-w-7xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div>
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-red-100 border border-red-200 text-xs font-semibold text-red-900 mb-3">
-              <ShieldAlert className="w-3.5 h-3.5 text-red-600" />
-              Universal Governance Console � Platform Superadmin
-            </div>
-            <h1 className="text-3xl lg:text-4xl font-extrabold tracking-tight headline-shadow font-serif">
-              AcadShield X Trust Network
-            </h1>
-            <p className="mt-1 text-forest/75 text-sm max-w-xl">
-              Global oversight across institutional issuers, enterprise verifiers, immutable document hashes, and security logs.
-            </p>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <Link
-              href="/admin/universities"
-              className="px-4 py-2.5 rounded-xl bg-forest text-white font-bold text-xs hover:bg-forest/90 transition shadow flex items-center gap-2"
-            >
-              <Building2 className="w-4 h-4 text-ochre" />
-              Manage Universities ({pendingUniversities} Pending)
-            </Link>
-            <Link
-              href="/admin/audit"
-              className="px-4 py-2.5 rounded-xl border border-forest/20 text-forest font-bold text-xs hover:bg-forest/5 transition flex items-center gap-1.5"
-            >
-              <History className="w-4 h-4 text-ochre" />
-              Audit Center
-            </Link>
-          </div>
+  return <main className="mx-auto max-w-7xl space-y-7 px-5 py-7 sm:px-8">
+    <header className="relative overflow-hidden rounded-3xl bg-forest p-6 text-white shadow-lg sm:p-8">
+      <div aria-hidden="true" className="pointer-events-none absolute -right-16 -top-24 h-72 w-72 rounded-full border-[32px] border-white/5" />
+      <div className="relative flex flex-wrap items-start justify-between gap-5">
+        <div className="max-w-2xl">
+          <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-white/85"><Activity className="h-3.5 w-3.5 text-ochre"/>Live Core registry</div>
+          <h1 className="mt-4 font-serif text-3xl font-extrabold tracking-tight sm:text-4xl">Admin overview</h1>
+          <p className="mt-2 max-w-xl text-sm leading-relaxed text-white/75">A current snapshot of registry records, recent database audit events, and configured chain evidence.</p>
         </div>
-      </section>
+        <button onClick={() => void refresh()} disabled={loading} className="inline-flex items-center gap-2 rounded-xl border border-white/20 bg-white px-4 py-2.5 text-sm font-bold text-forest shadow-sm transition hover:bg-amber-50 disabled:cursor-wait disabled:opacity-70"><RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`}/>{loading ? "Refreshing" : "Refresh snapshot"}</button>
+      </div>
+      <div className="relative mt-6 flex flex-wrap items-center gap-x-5 gap-y-2 border-t border-white/15 pt-4 text-xs text-white/75">
+        <span className="inline-flex items-center gap-2"><span className={`h-2 w-2 rounded-full ${readiness?.status === "READY" ? "bg-emerald-300" : "bg-amber-300"}`}/>{readiness?.status === "READY" ? "Core API and database ready" : "Core readiness unavailable"}</span>
+        {overview?.generatedAt && <span className="inline-flex items-center gap-1.5"><Clock3 className="h-3.5 w-3.5"/>Snapshot {new Date(overview.generatedAt).toLocaleString()}</span>}
+      </div>
+    </header>
 
-      <main className="max-w-7xl mx-auto px-6 pt-8 space-y-8">
-        {/* Platform Overview Metrics */}
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-          <div className="bg-white border border-forest/10 rounded-2xl p-4 shadow-sm">
-            <span className="text-[11px] font-bold text-forest/60 uppercase">Institutions</span>
-            <div className="mt-2 text-2xl font-black text-forest">{totalUniversities}</div>
-            <span className="text-[11px] text-emerald-700 font-semibold block mt-0.5">
-              {verifiedUniversities} Verified � {pendingUniversities} Pending
-            </span>
+    {error && <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950"><span>{error}</span><Link href="/login/admin" className="font-bold underline">Go to admin sign in</Link></div>}
+
+    <section aria-label="Registry totals" className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+      {cards.map(({ key, title, href, icon: Icon, accent }) => {
+        const counts = overview?.[key] || {};
+        return <Link key={key} href={href} className="group rounded-2xl border border-forest/10 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:border-forest/25 hover:shadow-md">
+          <div className="flex items-center justify-between"><span className={`grid h-10 w-10 place-items-center rounded-xl ${accent}`}><Icon className="h-5 w-5"/></span><ArrowRight className="h-4 w-4 text-forest/30 transition group-hover:translate-x-1 group-hover:text-forest"/></div>
+          <p className="mt-5 text-sm font-semibold text-forest/65">{title}</p>
+          <p className="mt-1 text-3xl font-extrabold tracking-tight text-forest">{overview ? total(counts) : "—"}</p>
+          <div className="mt-4 flex flex-wrap gap-1.5">
+            {Object.entries(counts).length ? Object.entries(counts).slice(0, 3).map(([status, count]) => <span key={status} className="rounded-full bg-forest/5 px-2.5 py-1 text-[10px] font-bold text-forest/70">{status.toLowerCase().replaceAll("_", " ")} · {count}</span>) : <span className="text-xs text-forest/45">{overview ? "No records yet" : "Loading live totals…"}</span>}
           </div>
+        </Link>;
+      })}
+    </section>
 
-          <div className="bg-white border border-forest/10 rounded-2xl p-4 shadow-sm">
-            <span className="text-[11px] font-bold text-forest/60 uppercase">Companies</span>
-            <div className="mt-2 text-2xl font-black text-forest">{totalCompanies}</div>
-            <span className="text-[11px] text-emerald-700 font-semibold block mt-0.5">
-              {verifiedCompanies} Active Verifiers
-            </span>
-          </div>
+    <section className="grid gap-6 lg:grid-cols-[1.35fr_0.85fr]">
+      <article className="overflow-hidden rounded-2xl border border-forest/10 bg-white shadow-sm">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-forest/10 px-5 py-4"><div><h2 className="font-bold text-forest">Recent audit activity</h2><p className="mt-1 text-xs text-forest/55">Latest Core database events</p></div><Link href="/admin/audit" className="inline-flex items-center gap-1 text-xs font-bold text-forest hover:text-ochre">Open audit history <ArrowRight className="h-3.5 w-3.5"/></Link></div>
+        {audit.length ? <ol className="divide-y divide-forest/5">{audit.map((entry) => <li key={entry.id} className="flex gap-3 px-5 py-4"><span className="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-full bg-forest/5 text-forest/65"><ArrowDownRight className="h-4 w-4"/></span><div className="min-w-0 flex-1"><div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1"><p className="truncate text-sm font-bold text-forest">{entry.action.toLowerCase().replaceAll("_", " ")}</p><time className="text-[11px] text-forest/50">{new Date(entry.createdAt).toLocaleString()}</time></div><p className="mt-1 truncate text-xs text-forest/60">{entry.actor?.email || "System"} · {entry.entityType}{entry.entityId ? ` · ${entry.entityId}` : ""}</p></div></li>)}</ol> : <div className="p-8 text-center"><p className="text-sm font-semibold text-forest">{loading ? "Loading audit events…" : "No audit activity yet"}</p><p className="mt-1 text-xs text-forest/55">Events will appear here as administrators and institutions use Core.</p></div>}
+        <div className="border-t border-amber-100 bg-amber-50/70 px-5 py-3 text-[11px] leading-relaxed text-amber-950">Audit rows are stored in PostgreSQL. Append-only and tamper-proof database enforcement is not configured.</div>
+      </article>
 
-          <div className="bg-white border border-forest/10 rounded-2xl p-4 shadow-sm">
-            <span className="text-[11px] font-bold text-forest/60 uppercase">Students</span>
-            <div className="mt-2 text-2xl font-black text-forest">{students.length}</div>
-            <span className="text-[11px] text-forest/50 block mt-0.5">DIDs on Network</span>
-          </div>
+      <aside className="space-y-4">
+        <article className="rounded-2xl border border-forest/10 bg-white p-5 shadow-sm"><div className="flex items-center gap-3"><span className="grid h-10 w-10 place-items-center rounded-xl bg-sky-50 text-sky-800"><Activity className="h-5 w-5"/></span><div><h2 className="font-bold">Runtime status</h2><p className="text-xs text-forest/55">Readiness endpoint</p></div></div><div className="mt-5 flex items-center justify-between border-t border-forest/10 pt-4 text-sm"><span className="text-forest/65">Database</span><b>{readiness?.database || "Checking…"}</b></div><div className="mt-3 flex items-center justify-between text-sm"><span className="text-forest/65">Core API</span><b>{readiness?.status || "Checking…"}</b></div></article>
+        <article className="rounded-2xl border border-forest/10 bg-white p-5 shadow-sm"><div className="flex items-center gap-3"><span className="grid h-10 w-10 place-items-center rounded-xl bg-violet-50 text-violet-800"><Award className="h-5 w-5"/></span><div><h2 className="font-bold">Chain evidence</h2><p className="text-xs text-forest/55">Stored receipts and configuration</p></div></div><div className="mt-5 flex items-center justify-between border-t border-forest/10 pt-4 text-sm"><span className="text-forest/65">Write integration</span><b>{chain ? chain.writeIntegrationConfigured ? "Configured" : "Not configured" : "Checking…"}</b></div><div className="mt-3 flex items-center justify-between text-sm"><span className="text-forest/65">Stored receipts</span><b>{chain?.storedReceiptCount ?? "—"}</b></div>{chain?.configuredChainId && <div className="mt-2 text-xs text-forest/55">Configured chain ID: {chain.configuredChainId}</div>}<Link href="/admin/blockchain" className="mt-4 inline-flex items-center gap-1 text-xs font-bold text-forest hover:text-ochre">Inspect chain records <ArrowRight className="h-3.5 w-3.5"/></Link></article>
+      </aside>
+    </section>
 
-          <div className="bg-white border border-forest/10 rounded-2xl p-4 shadow-sm">
-            <span className="text-[11px] font-bold text-forest/60 uppercase">Credentials</span>
-            <div className="mt-2 text-2xl font-black text-emerald-700">{activeCreds}</div>
-            <span className="text-[11px] text-red-600 font-semibold block mt-0.5">
-              {revokedCreds} Revoked Tombstones
-            </span>
-          </div>
-
-          <div className="bg-white border border-forest/10 rounded-2xl p-4 shadow-sm">
-            <span className="text-[11px] font-bold text-forest/60 uppercase">Documents</span>
-            <div className="mt-2 text-2xl font-black text-forest">{documents.length}</div>
-            <span className="text-[11px] text-forest/50 block mt-0.5">Hashed & Anchored</span>
-          </div>
-
-          <div className="bg-white border border-forest/10 rounded-2xl p-4 shadow-sm">
-            <span className="text-[11px] font-bold text-forest/60 uppercase">Verifications</span>
-            <div className="mt-2 text-2xl font-black text-forest">{verifications.length}</div>
-            <span className="text-[11px] text-emerald-700 font-semibold block mt-0.5">
-              {successfulVerifs} Clean Matches
-            </span>
-          </div>
-        </div>
-
-        {/* Pending Actions & Governance Queue */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2 bg-white border border-forest/10 rounded-2xl p-6 shadow-sm">
-            <div className="flex items-center justify-between border-b border-forest/10 pb-4 mb-4">
-              <div>
-                <h2 className="text-base font-bold text-forest">
-                  Global Immutable Audit Activity
-                </h2>
-                <p className="text-xs text-forest/60 mt-0.5">
-                  Append-only ledger recording all actor events, status shifts, and cryptographic anchors
-                </p>
-              </div>
-              <Link
-                href="/admin/audit"
-                className="text-xs font-bold text-ochre hover:underline flex items-center gap-1"
-              >
-                View Full Log <ArrowRight className="w-3.5 h-3.5" />
-              </Link>
-            </div>
-
-            <div className="divide-y divide-forest/10">
-              {auditLogs.slice(0, 5).map((log) => (
-                <div key={log.id} className="py-3 flex items-center justify-between gap-4 text-xs">
-                  <div className="flex items-center gap-3">
-                    <span
-                      className={`w-2 h-2 rounded-full shrink-0 ${
-                        log.result === "SUCCESS"
-                          ? "bg-emerald-500"
-                          : log.result === "WARNING"
-                          ? "bg-amber-500"
-                          : "bg-red-500"
-                      }`}
-                    />
-                    <div>
-                      <div className="font-bold text-forest">{log.action}</div>
-                      <div className="text-[11px] text-forest/70">{log.details}</div>
-                      <div className="font-mono text-[10px] text-forest/40">
-                        Actor: {log.actor} ({log.role})
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="text-right shrink-0">
-                    <span className="text-[10px] font-mono text-forest/50">
-                      {new Date(log.timestamp).toLocaleTimeString()}
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Quick Admin Actions */}
-          <div className="space-y-6">
-            <div className="bg-forest text-white rounded-2xl p-6 shadow-sm">
-              <h3 className="text-sm font-bold flex items-center gap-2">
-                <ShieldCheck className="w-4 h-4 text-ochre" />
-                Platform Rule Enforcement
-              </h3>
-              <p className="text-xs text-white/80 mt-2 leading-relaxed">
-                Admins govern network accreditation, API quotas, and platform trust standards. Any state mutation produces an unforgeable audit entry.
-              </p>
-              <div className="mt-4 pt-4 border-t border-white/10 space-y-2 text-xs">
-                <div className="flex items-center justify-between text-white/80">
-                  <span>Smart Contract Network:</span>
-                  <strong className="text-ochre">Polygon Amoy</strong>
-                </div>
-                <div className="flex items-center justify-between text-white/80">
-                  <span>Audit Guarantee:</span>
-                  <strong className="text-white">Append-Only</strong>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white border border-forest/10 rounded-2xl p-5 shadow-sm space-y-2.5">
-              <h4 className="text-xs font-bold text-forest uppercase tracking-wider mb-2">
-                Governance Hubs
-              </h4>
-              <Link
-                href="/admin/universities"
-                className="w-full py-2.5 px-3 rounded-xl bg-forest/5 hover:bg-forest/10 border border-forest/10 text-xs font-bold text-forest flex items-center justify-between transition"
-              >
-                <span>Accreditation Center (Universities)</span>
-                <ArrowRight className="w-3.5 h-3.5 text-ochre" />
-              </Link>
-              <Link
-                href="/admin/companies"
-                className="w-full py-2.5 px-3 rounded-xl bg-forest/5 hover:bg-forest/10 border border-forest/10 text-xs font-bold text-forest flex items-center justify-between transition"
-              >
-                <span>Corporate Verifiers Console</span>
-                <ArrowRight className="w-3.5 h-3.5 text-ochre" />
-              </Link>
-              <Link
-                href="/admin/documents"
-                className="w-full py-2.5 px-3 rounded-xl bg-forest/5 hover:bg-forest/10 border border-forest/10 text-xs font-bold text-forest flex items-center justify-between transition"
-              >
-                <span>Global Document Hash Register</span>
-                <ArrowRight className="w-3.5 h-3.5 text-ochre" />
-              </Link>
-            </div>
-          </div>
-        </div>
-      </main>
-    </div>
-  );
+    <nav aria-label="Admin shortcuts" className="grid gap-3 sm:grid-cols-3"><Link href="/admin/universities" className="rounded-xl border border-forest/10 bg-white p-4 text-sm font-bold shadow-sm transition hover:border-forest/30">Institution directory <span className="mt-1 block text-xs font-normal text-forest/55">Review registered institutions</span></Link><Link href="/admin/companies" className="rounded-xl border border-forest/10 bg-white p-4 text-sm font-bold shadow-sm transition hover:border-forest/30">Company directory <span className="mt-1 block text-xs font-normal text-forest/55">Review company accounts</span></Link><Link href="/admin/audit" className="rounded-xl border border-forest/10 bg-white p-4 text-sm font-bold shadow-sm transition hover:border-forest/30">Audit history <span className="mt-1 block text-xs font-normal text-forest/55">Search and export recorded events</span></Link></nav>
+  </main>;
 }

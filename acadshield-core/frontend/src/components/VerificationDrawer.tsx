@@ -255,7 +255,7 @@ export default function VerificationDrawer({ credential, isOpen, onClose }: Veri
         {/* W3C VC JSON-LD Viewer */}
         {showJsonPayload && (
           <div className="mt-4 p-4 bg-[#0B251D] text-[#FAF7F2] rounded-xl font-mono text-xs overflow-x-auto">
-            <div className="text-[#E5B25D] font-bold mb-2">// Canonical W3C Verifiable Credential Payload</div>
+            <div className="text-[#E5B25D] font-bold mb-2">W3C Verifiable Credential Payload</div>
             <pre className="whitespace-pre">{JSON.stringify(credential.w3cPayload, null, 2)}</pre>
           </div>
         )}

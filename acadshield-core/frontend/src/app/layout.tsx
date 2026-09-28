@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import DemoDataBanner from "@/components/DemoDataBanner";
 
 export const metadata: Metadata = {
   title: "ACADSHIELD X — Digital Trust Infrastructure for Education & Employment",
-  description: "Tamper-proof verifiable credentials, decentralized identities (DID), and instant zero-login public verification anchored on Polygon Amoy blockchain.",
+  description: "Institution-reviewed academic source records, signed credentials, and evidence-based public verification. Blockchain and external source checks are reported when configured.",
   icons: {
     icon: "/favicon.ico",
   },
@@ -20,6 +21,7 @@ export default function RootLayout({
         <meta name="theme-color" content="#FAF7F2" />
       </head>
       <body className="bg-canvas-texture min-h-screen text-[#0B251D] antialiased selection:bg-[#E5B25D] selection:text-[#0B251D]">
+        <DemoDataBanner />
         {children}
       </body>
     </html>

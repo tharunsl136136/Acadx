@@ -5,7 +5,8 @@ import * as dotenv from "dotenv";
 dotenv.config({ path: "../.env" });
 
 const POLYGON_AMOY_RPC = process.env.BLOCKCHAIN_RPC_URL || "https://rpc-amoy.polygon.technology";
-const DEPLOYER_PRIVATE_KEY = process.env.DEPLOYER_PRIVATE_KEY || "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80";
+// Never use a public test key as an implicit deployment identity.
+const DEPLOYER_PRIVATE_KEY = process.env.DEPLOYER_PRIVATE_KEY;
 const POLYGONSCAN_API_KEY = process.env.POLYGONSCAN_API_KEY || "";
 
 const config: HardhatUserConfig = {
@@ -27,11 +28,9 @@ const config: HardhatUserConfig = {
       url: "http://127.0.0.1:8545",
       chainId: 31337,
     },
-    polygonAmoy: {
-      url: POLYGON_AMOY_RPC,
-      chainId: 80002,
-      accounts: [DEPLOYER_PRIVATE_KEY],
-    },
+    ...(DEPLOYER_PRIVATE_KEY
+      ? { polygonAmoy: { url: POLYGON_AMOY_RPC, chainId: 80002, accounts: [DEPLOYER_PRIVATE_KEY] } }
+      : {}),
   },
   etherscan: {
     apiKey: {
